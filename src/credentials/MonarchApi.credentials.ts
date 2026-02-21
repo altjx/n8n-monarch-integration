@@ -21,7 +21,7 @@ export class MonarchApi implements ICredentialType {
 	name = 'monarchApi';
 
 	displayName = 'Monarch Money API';
-	documentationUrl = 'monarch';
+	documentationUrl = 'https://github.com/altjx/n8n-monarch-integration#readme';
 	testedBy = 'monarchCredentialTest';
 
 	properties: INodeProperties[] = [

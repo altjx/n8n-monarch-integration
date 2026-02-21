@@ -45,7 +45,7 @@ const COMMON_HEADERS = {
 class MonarchApi {
     name = 'monarchApi';
     displayName = 'Monarch Money API';
-    documentationUrl = 'monarch';
+    documentationUrl = 'https://github.com/altjx/n8n-monarch-integration#readme';
     testedBy = 'monarchCredentialTest';
     properties = [
         {
