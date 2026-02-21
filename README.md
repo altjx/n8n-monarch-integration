@@ -16,8 +16,8 @@ A custom [n8n](https://n8n.io) node that connects to [Monarch Money](https://www
 
 ## Prerequisites
 
-- Docker with a running n8n container (the official `docker.n8n.io/n8nio/n8n` image)
-- Your n8n container must be named `n8n` (or pass your container name to the install script)
+- n8n installed via any method (Docker, npm global, npx, etc.)
+- Docker CLI available if using the Docker install path
 
 ---
 
@@ -32,21 +32,41 @@ cd n8n-monarch-integration
 
 ### 2. Run the install script
 
+The install script copies the compiled node files into n8n's custom node directory (`~/.n8n/custom/`), which n8n automatically scans at startup regardless of how it was installed.
+
+**Local install (npm global, npx, etc.):**
+
 ```bash
 ./install.sh
 ```
 
-This copies the compiled node files into your running n8n container and patches its `package.json` to register the credential and node.
+Then restart n8n however you normally run it.
 
-If your container has a different name, pass it as an argument:
+**Docker install:**
 
 ```bash
-./install.sh my-n8n-container
+./install.sh --docker
 ```
 
-The script will automatically restart the container when done. After it comes back up, the **Monarch Money** node will appear in the n8n node panel and the **Monarch Money API** credential will be available under **Credentials → New**.
+This copies the files into the running container's `/home/node/.n8n/custom/` directory and automatically restarts the container. If your container has a different name than `n8n`:
 
-> **Note:** You'll need to re-run `./install.sh` any time n8n is updated, since the container image is replaced on update and the injected files are lost.
+```bash
+./install.sh --docker my-container-name
+```
+
+**Custom `N8N_USER_FOLDER`:**
+
+If you've set a custom `N8N_USER_FOLDER` environment variable, prefix the command with it:
+
+```bash
+N8N_USER_FOLDER=/your/custom/path ./install.sh
+```
+
+### 3. Verify
+
+After restarting, the **Monarch Money** node will appear in the n8n node panel and **Monarch Money API** will be available under **Credentials → New**.
+
+> **Note:** The files are copied into n8n's custom directory, which persists across n8n updates. You only need to re-run `./install.sh` if you pull new changes from this repo.
 
 ---
 
@@ -58,7 +78,7 @@ In n8n, go to **Credentials → New → Monarch Money API** and fill in:
 |---|---|---|
 | **Email** | Yes | Your Monarch Money account email |
 | **Password** | Yes | Your Monarch Money account password |
-| **MFA Secret Key** | If MFA enabled | The TOTP secret key from Monarch's MFA setup screen (see below) |
+| **MFA Secret Key** | If MFA enabled | The TOTP secret key from Monarch's MFA setup (see below) |
 
 ### MFA Setup
 
@@ -76,26 +96,22 @@ Both your authenticator app and n8n use the same secret key independently — yo
 
 ## Updating
 
-To update the node after pulling new changes from this repo:
-
 ```bash
 git pull
-./install.sh
+./install.sh         # or ./install.sh --docker
 ```
-
-The install script will restart the container automatically.
 
 ---
 
 ## Development
 
-The TypeScript source files are in `src/`. The pre-compiled output is in `dist/` and is what gets injected into the container by the install script.
+The TypeScript source files are in `src/`. The pre-compiled output in `dist/` is what the install script deploys.
 
-If you want to modify the node:
+To modify the node:
 
 1. Clone the full [n8n repository](https://github.com/n8n-io/n8n)
 2. Copy the `src/` files into their respective locations under `packages/nodes-base/`
-3. Build with `pnpm build` from the `packages/nodes-base` directory
+3. Run `pnpm build` from the repo root (or `packages/nodes-base` directory)
 4. Copy the new compiled output back into `dist/` in this repo
 
 ---
