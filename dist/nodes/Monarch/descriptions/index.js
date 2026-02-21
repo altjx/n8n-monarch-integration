@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.netWorthFields = exports.netWorthOperations = exports.budgetFields = exports.budgetOperations = exports.cashFlowFields = exports.cashFlowOperations = exports.transactionFields = exports.transactionOperations = exports.accountFields = exports.accountOperations = void 0;
+exports.netWorthFields = exports.netWorthOperations = exports.budgetFields = exports.budgetOperations = exports.cashFlowFields = exports.cashFlowOperations = exports.transactionFields = exports.transactionOperations = exports.categoryFields = exports.categoryOperations = exports.accountFields = exports.accountOperations = void 0;
 var AccountDescription_1 = require("./AccountDescription");
 Object.defineProperty(exports, "accountOperations", { enumerable: true, get: function () { return AccountDescription_1.accountOperations; } });
 Object.defineProperty(exports, "accountFields", { enumerable: true, get: function () { return AccountDescription_1.accountFields; } });
+var CategoryDescription_1 = require("./CategoryDescription");
+Object.defineProperty(exports, "categoryOperations", { enumerable: true, get: function () { return CategoryDescription_1.categoryOperations; } });
+Object.defineProperty(exports, "categoryFields", { enumerable: true, get: function () { return CategoryDescription_1.categoryFields; } });
 var TransactionDescription_1 = require("./TransactionDescription");
 Object.defineProperty(exports, "transactionOperations", { enumerable: true, get: function () { return TransactionDescription_1.transactionOperations; } });
 Object.defineProperty(exports, "transactionFields", { enumerable: true, get: function () { return TransactionDescription_1.transactionFields; } });

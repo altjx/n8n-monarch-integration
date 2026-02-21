@@ -13,6 +13,8 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import {
 	accountOperations,
 	accountFields,
+	categoryOperations,
+	categoryFields,
 	transactionOperations,
 	transactionFields,
 	cashFlowOperations,
@@ -218,6 +220,74 @@ const GET_JOINT_PLANNING_DATA = `query Common_GetJointPlanningData($startDate: D
   }
 }`;
 
+const GET_CATEGORIES = `query GetCategories {
+  categories {
+    id
+    order
+    name
+    systemCategory
+    isSystemCategory
+    isDisabled
+    updatedAt
+    createdAt
+    group {
+      id
+      name
+      type
+      __typename
+    }
+    __typename
+  }
+}`;
+
+const UPDATE_TRANSACTION = `mutation Web_TransactionDrawerUpdateTransaction($input: UpdateTransactionMutationInput!) {
+  updateTransaction(input: $input) {
+    transaction {
+      id
+      amount
+      pending
+      date
+      hideFromReports
+      needsReview
+      reviewedAt
+      reviewedByUser {
+        id
+        name
+        __typename
+      }
+      plaidName
+      notes
+      isRecurring
+      category {
+        id
+        name
+        __typename
+      }
+      goal {
+        id
+        __typename
+      }
+      merchant {
+        id
+        name
+        __typename
+      }
+      __typename
+    }
+    errors {
+      fieldErrors {
+        field
+        messages
+        __typename
+      }
+      message
+      code
+      __typename
+    }
+    __typename
+  }
+}`;
+
 const GET_AGGREGATE_SNAPSHOTS = `query GetAggregateSnapshots($filters: AggregateSnapshotFilters) {
   aggregateSnapshots(filters: $filters) {
     date
@@ -294,6 +364,7 @@ export class Monarch implements INodeType {
 					{ name: 'Account', value: 'account' },
 					{ name: 'Budget', value: 'budget' },
 					{ name: 'Cash Flow', value: 'cashFlow' },
+					{ name: 'Category', value: 'category' },
 					{ name: 'Net Worth', value: 'netWorth' },
 					{ name: 'Transaction', value: 'transaction' },
 				],
@@ -301,6 +372,8 @@ export class Monarch implements INodeType {
 			},
 			...accountOperations,
 			...accountFields,
+			...categoryOperations,
+			...categoryFields,
 			...transactionOperations,
 			...transactionFields,
 			...cashFlowOperations,
@@ -358,6 +431,19 @@ export class Monarch implements INodeType {
 						const history = (responseData.accountHistory as IDataObject[]) ?? [];
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(history),
+							{ itemData: { item: i } },
+						);
+						returnData.push.apply(returnData, executionData);
+						continue;
+					}
+				}
+
+				if (resource === 'category') {
+					if (operation === 'getAll') {
+						const responseData = await monarchRequest.call(this, 'GetCategories', GET_CATEGORIES);
+						const categories = (responseData.categories as IDataObject[]) ?? [];
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray(categories),
 							{ itemData: { item: i } },
 						);
 						returnData.push.apply(returnData, executionData);
@@ -426,6 +512,62 @@ export class Monarch implements INodeType {
 						const aggregates = (responseData.aggregates as IDataObject) ?? {};
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray([aggregates]),
+							{ itemData: { item: i } },
+						);
+						returnData.push.apply(returnData, executionData);
+						continue;
+					}
+
+					if (operation === 'update') {
+						const transactionId = this.getNodeParameter('transactionId', i) as string;
+						const updateFields = this.getNodeParameter('updateFields', i) as IDataObject;
+
+						const input: IDataObject = { id: transactionId };
+
+						// Merchant name and category: only pass when non-empty (API ignores empty strings anyway,
+						// but we avoid sending them so the AI can use empty string to mean "don't change")
+						if (updateFields.merchantName) {
+							input.name = updateFields.merchantName;
+						}
+						if (updateFields.categoryId) {
+							input.category = updateFields.categoryId;
+						}
+
+						// Amount and date: only pass when non-empty
+						if (updateFields.amount) {
+							input.amount = updateFields.amount;
+						}
+						if (updateFields.date) {
+							input.date = toDateString(updateFields.date as string);
+						}
+
+						// Booleans: only pass when explicitly set
+						if (updateFields.hideFromReports !== undefined) {
+							input.hideFromReports = Boolean(updateFields.hideFromReports);
+						}
+						if (updateFields.needsReview !== undefined) {
+							input.needsReview = Boolean(updateFields.needsReview);
+						}
+
+						// goalId and notes: pass even when empty string (empty clears the value)
+						if (updateFields.goalId !== undefined) {
+							input.goalId = updateFields.goalId;
+						}
+						if (updateFields.notes !== undefined) {
+							input.notes = updateFields.notes;
+						}
+
+						const responseData = await monarchRequest.call(
+							this,
+							'Web_TransactionDrawerUpdateTransaction',
+							UPDATE_TRANSACTION,
+							{ input },
+						);
+
+						const updateTransaction = (responseData.updateTransaction as IDataObject) ?? {};
+						const transaction = (updateTransaction.transaction as IDataObject) ?? updateTransaction;
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray([transaction]),
 							{ itemData: { item: i } },
 						);
 						returnData.push.apply(returnData, executionData);

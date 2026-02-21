@@ -21,12 +21,21 @@ exports.transactionOperations = [
                 description: 'Get aggregate transaction statistics',
                 action: 'Get transaction summary',
             },
+            {
+                name: 'Update',
+                value: 'update',
+                description: 'Update details of an existing transaction',
+                action: 'Update a transaction',
+            },
         ],
         default: 'getMany',
     },
 ];
 exports.transactionFields = [
-    // Limit — shown for getMany
+    // -------------------------------------------------------------------------
+    // getMany fields
+    // -------------------------------------------------------------------------
+    // Limit
     {
         displayName: 'Limit',
         name: 'limit',
@@ -36,7 +45,7 @@ exports.transactionFields = [
         description: 'Max number of results to return',
         displayOptions: { show: { resource: ['transaction'], operation: ['getMany'] } },
     },
-    // Offset — shown for getMany
+    // Offset
     {
         displayName: 'Offset',
         name: 'offset',
@@ -45,7 +54,7 @@ exports.transactionFields = [
         description: 'Number of transactions to skip for pagination',
         displayOptions: { show: { resource: ['transaction'], operation: ['getMany'] } },
     },
-    // Filters — shown for getMany
+    // Filters
     {
         displayName: 'Filters',
         name: 'filters',
@@ -102,6 +111,87 @@ exports.transactionFields = [
                 type: 'boolean',
                 default: false,
                 description: 'Whether to filter split transactions',
+            },
+        ],
+    },
+    // -------------------------------------------------------------------------
+    // update fields
+    // -------------------------------------------------------------------------
+    // Transaction ID
+    {
+        displayName: 'Transaction ID',
+        name: 'transactionId',
+        type: 'string',
+        required: true,
+        default: '',
+        description: 'The ID of the transaction to update',
+        displayOptions: { show: { resource: ['transaction'], operation: ['update'] } },
+    },
+    // Update Fields collection
+    {
+        displayName: 'Update Fields',
+        name: 'updateFields',
+        type: 'collection',
+        placeholder: 'Add Field',
+        default: {},
+        displayOptions: { show: { resource: ['transaction'], operation: ['update'] } },
+        options: [
+            {
+                displayName: 'Amount',
+                name: 'amount',
+                type: 'number',
+                default: 0,
+                typeOptions: { numberPrecision: 2 },
+                description: 'The transaction amount',
+            },
+            {
+                displayName: 'Category ID',
+                name: 'categoryId',
+                type: 'string',
+                default: '',
+                description: 'The ID of the category to assign to this transaction',
+            },
+            {
+                displayName: 'Date',
+                name: 'date',
+                type: 'dateTime',
+                default: '',
+                description: 'The date of the transaction (YYYY-MM-DD)',
+            },
+            {
+                displayName: 'Goal ID',
+                name: 'goalId',
+                type: 'string',
+                default: '',
+                description: 'The ID of the goal to associate with this transaction. Use an empty string to clear.',
+            },
+            {
+                displayName: 'Hide from Reports',
+                name: 'hideFromReports',
+                type: 'boolean',
+                default: false,
+                description: 'Whether to hide this transaction from reports',
+            },
+            {
+                displayName: 'Merchant Name',
+                name: 'merchantName',
+                type: 'string',
+                default: '',
+                description: 'The merchant name for this transaction. Empty strings are ignored by the API.',
+            },
+            {
+                displayName: 'Needs Review',
+                name: 'needsReview',
+                type: 'boolean',
+                default: false,
+                description: 'Whether this transaction needs review',
+            },
+            {
+                displayName: 'Notes',
+                name: 'notes',
+                type: 'string',
+                default: '',
+                description: 'Notes for this transaction. Use an empty string to clear existing notes.',
             },
         ],
     },

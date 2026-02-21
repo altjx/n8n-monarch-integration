@@ -142,12 +142,15 @@ const GET_TRANSACTIONS_PAGE = `query GetTransactionsPage($filters: TransactionFi
     __typename
   }
 }`;
-const GET_CASHFLOW_SUMMARY = `query GetCashflowSummary($startDate: Date!, $endDate: Date!) {
-  summary: cashflowSummary(startDate: $startDate, endDate: $endDate) {
-    sumIncome
-    sumExpense
-    savings
-    savingsRate
+const GET_CASHFLOW_SUMMARY = `query Web_GetCashFlowPage($filters: TransactionFilterInput) {
+  summary: aggregates(filters: $filters, fillEmptyValues: true) {
+    summary {
+      sumIncome
+      sumExpense
+      savings
+      savingsRate
+      __typename
+    }
     __typename
   }
 }`;
@@ -183,6 +186,72 @@ const GET_JOINT_PLANNING_DATA = `query Common_GetJointPlanningData($startDate: D
       icon
       budgetVariability
       excludeFromBudget
+      __typename
+    }
+    __typename
+  }
+}`;
+const GET_CATEGORIES = `query GetCategories {
+  categories {
+    id
+    order
+    name
+    systemCategory
+    isSystemCategory
+    isDisabled
+    updatedAt
+    createdAt
+    group {
+      id
+      name
+      type
+      __typename
+    }
+    __typename
+  }
+}`;
+const UPDATE_TRANSACTION = `mutation Web_TransactionDrawerUpdateTransaction($input: UpdateTransactionMutationInput!) {
+  updateTransaction(input: $input) {
+    transaction {
+      id
+      amount
+      pending
+      date
+      hideFromReports
+      needsReview
+      reviewedAt
+      reviewedByUser {
+        id
+        name
+        __typename
+      }
+      plaidName
+      notes
+      isRecurring
+      category {
+        id
+        name
+        __typename
+      }
+      goal {
+        id
+        __typename
+      }
+      merchant {
+        id
+        name
+        __typename
+      }
+      __typename
+    }
+    errors {
+      fieldErrors {
+        field
+        messages
+        __typename
+      }
+      message
+      code
       __typename
     }
     __typename
@@ -257,6 +326,7 @@ class Monarch {
                     { name: 'Account', value: 'account' },
                     { name: 'Budget', value: 'budget' },
                     { name: 'Cash Flow', value: 'cashFlow' },
+                    { name: 'Category', value: 'category' },
                     { name: 'Net Worth', value: 'netWorth' },
                     { name: 'Transaction', value: 'transaction' },
                 ],
@@ -264,6 +334,8 @@ class Monarch {
             },
             ...descriptions_1.accountOperations,
             ...descriptions_1.accountFields,
+            ...descriptions_1.categoryOperations,
+            ...descriptions_1.categoryFields,
             ...descriptions_1.transactionOperations,
             ...descriptions_1.transactionFields,
             ...descriptions_1.cashFlowOperations,
@@ -286,13 +358,11 @@ class Monarch {
         const returnData = [];
         const resource = this.getNodeParameter('resource', 0);
         const operation = this.getNodeParameter('operation', 0);
-        // Login once per execution
-        const token = await GenericFunctions_1.monarchLogin.call(this);
         for (let i = 0; i < items.length; i++) {
             try {
                 if (resource === 'account') {
                     if (operation === 'getAll') {
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetAccounts', GET_ACCOUNTS);
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetAccounts', GET_ACCOUNTS);
                         const accounts = responseData.accounts ?? [];
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(accounts), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
@@ -300,9 +370,18 @@ class Monarch {
                     }
                     if (operation === 'getHistory') {
                         const accountId = this.getNodeParameter('accountId', i);
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetAccountHistory', GET_ACCOUNT_HISTORY, { accountId });
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetAccountHistory', GET_ACCOUNT_HISTORY, { accountId });
                         const history = responseData.accountHistory ?? [];
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(history), { itemData: { item: i } });
+                        returnData.push.apply(returnData, executionData);
+                        continue;
+                    }
+                }
+                if (resource === 'category') {
+                    if (operation === 'getAll') {
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetCategories', GET_CATEGORIES);
+                        const categories = responseData.categories ?? [];
+                        const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(categories), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
                         continue;
                     }
@@ -334,7 +413,7 @@ class Monarch {
                         if (filters.isSplit) {
                             gqlFilters.isSplit = filters.isSplit;
                         }
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetTransactionsList', GET_TRANSACTIONS_LIST, {
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetTransactionsList', GET_TRANSACTIONS_LIST, {
                             offset,
                             limit,
                             orderBy: 'date',
@@ -347,9 +426,49 @@ class Monarch {
                         continue;
                     }
                     if (operation === 'getSummary') {
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetTransactionsPage', GET_TRANSACTIONS_PAGE, { filters: {} });
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetTransactionsPage', GET_TRANSACTIONS_PAGE, { filters: {} });
                         const aggregates = responseData.aggregates ?? {};
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray([aggregates]), { itemData: { item: i } });
+                        returnData.push.apply(returnData, executionData);
+                        continue;
+                    }
+                    if (operation === 'update') {
+                        const transactionId = this.getNodeParameter('transactionId', i);
+                        const updateFields = this.getNodeParameter('updateFields', i);
+                        const input = { id: transactionId };
+                        // Merchant name and category: only pass when non-empty (API ignores empty strings anyway,
+                        // but we avoid sending them so the AI can use empty string to mean "don't change")
+                        if (updateFields.merchantName) {
+                            input.name = updateFields.merchantName;
+                        }
+                        if (updateFields.categoryId) {
+                            input.category = updateFields.categoryId;
+                        }
+                        // Amount and date: only pass when non-empty
+                        if (updateFields.amount) {
+                            input.amount = updateFields.amount;
+                        }
+                        if (updateFields.date) {
+                            input.date = toDateString(updateFields.date);
+                        }
+                        // Booleans: only pass when explicitly set
+                        if (updateFields.hideFromReports !== undefined) {
+                            input.hideFromReports = Boolean(updateFields.hideFromReports);
+                        }
+                        if (updateFields.needsReview !== undefined) {
+                            input.needsReview = Boolean(updateFields.needsReview);
+                        }
+                        // goalId and notes: pass even when empty string (empty clears the value)
+                        if (updateFields.goalId !== undefined) {
+                            input.goalId = updateFields.goalId;
+                        }
+                        if (updateFields.notes !== undefined) {
+                            input.notes = updateFields.notes;
+                        }
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'Web_TransactionDrawerUpdateTransaction', UPDATE_TRANSACTION, { input });
+                        const updateTransaction = responseData.updateTransaction ?? {};
+                        const transaction = updateTransaction.transaction ?? updateTransaction;
+                        const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray([transaction]), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
                         continue;
                     }
@@ -358,8 +477,18 @@ class Monarch {
                     if (operation === 'getSummary') {
                         const startDate = toDateString(this.getNodeParameter('startDate', i));
                         const endDate = toDateString(this.getNodeParameter('endDate', i));
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetCashflowSummary', GET_CASHFLOW_SUMMARY, { startDate, endDate });
-                        const summary = responseData.summary ?? {};
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'Web_GetCashFlowPage', GET_CASHFLOW_SUMMARY, {
+                            filters: {
+                                search: '',
+                                categories: [],
+                                accounts: [],
+                                tags: [],
+                                startDate,
+                                endDate,
+                            },
+                        });
+                        const summaryWrapper = responseData.summary ?? {};
+                        const summary = summaryWrapper.summary ?? summaryWrapper;
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray([summary]), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
                         continue;
@@ -374,7 +503,7 @@ class Monarch {
                         const endDate = additionalFields.endDate
                             ? toDateString(additionalFields.endDate)
                             : lastDayOfMonthOffset(1);
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'Common_GetJointPlanningData', GET_JOINT_PLANNING_DATA, { startDate, endDate });
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'Common_GetJointPlanningData', GET_JOINT_PLANNING_DATA, { startDate, endDate });
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray([responseData]), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
                         continue;
@@ -393,7 +522,7 @@ class Monarch {
                         if (additionalFields.accountType) {
                             filters.accountType = additionalFields.accountType;
                         }
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetAggregateSnapshots', GET_AGGREGATE_SNAPSHOTS, { filters });
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetAggregateSnapshots', GET_AGGREGATE_SNAPSHOTS, { filters });
                         const snapshots = responseData.aggregateSnapshots ?? [];
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(snapshots), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
@@ -402,7 +531,7 @@ class Monarch {
                     if (operation === 'getByAccountType') {
                         const startDate = toDateString(this.getNodeParameter('startDate', i));
                         const timeframe = this.getNodeParameter('timeframe', i);
-                        const responseData = await GenericFunctions_1.monarchRequest.call(this, token, 'GetSnapshotsByAccountType', GET_SNAPSHOTS_BY_ACCOUNT_TYPE, { startDate, timeframe });
+                        const responseData = await GenericFunctions_1.monarchRequest.call(this, 'GetSnapshotsByAccountType', GET_SNAPSHOTS_BY_ACCOUNT_TYPE, { startDate, timeframe });
                         const snapshots = responseData.snapshotsByAccountType ?? [];
                         const executionData = this.helpers.constructExecutionMetaData(this.helpers.returnJsonArray(snapshots), { itemData: { item: i } });
                         returnData.push.apply(returnData, executionData);
