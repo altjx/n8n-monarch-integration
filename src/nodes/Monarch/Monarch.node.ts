@@ -22,7 +22,7 @@ import {
 	netWorthOperations,
 	netWorthFields,
 } from './descriptions';
-import { monarchCredentialTest, monarchLogin, monarchRequest } from './GenericFunctions';
+import { monarchCredentialTest, monarchRequest } from './GenericFunctions';
 
 // ---------------------------------------------------------------------------
 // GraphQL queries
@@ -167,12 +167,15 @@ const GET_TRANSACTIONS_PAGE = `query GetTransactionsPage($filters: TransactionFi
   }
 }`;
 
-const GET_CASHFLOW_SUMMARY = `query GetCashflowSummary($startDate: Date!, $endDate: Date!) {
-  summary: cashflowSummary(startDate: $startDate, endDate: $endDate) {
-    sumIncome
-    sumExpense
-    savings
-    savingsRate
+const GET_CASHFLOW_SUMMARY = `query Web_GetCashFlowPage($filters: TransactionFilterInput) {
+  summary: aggregates(filters: $filters, fillEmptyValues: true) {
+    summary {
+      sumIncome
+      sumExpense
+      savings
+      savingsRate
+      __typename
+    }
     __typename
   }
 }`;
@@ -330,19 +333,11 @@ export class Monarch implements INodeType {
 		const resource = this.getNodeParameter('resource', 0);
 		const operation = this.getNodeParameter('operation', 0);
 
-		// Login once per execution
-		const token = await monarchLogin.call(this);
-
 		for (let i = 0; i < items.length; i++) {
 			try {
 				if (resource === 'account') {
 					if (operation === 'getAll') {
-						const responseData = await monarchRequest.call(
-							this,
-							token,
-							'GetAccounts',
-							GET_ACCOUNTS,
-						);
+						const responseData = await monarchRequest.call(this, 'GetAccounts', GET_ACCOUNTS);
 						const accounts = (responseData.accounts as IDataObject[]) ?? [];
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray(accounts),
@@ -356,7 +351,6 @@ export class Monarch implements INodeType {
 						const accountId = this.getNodeParameter('accountId', i) as string;
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'GetAccountHistory',
 							GET_ACCOUNT_HISTORY,
 							{ accountId },
@@ -402,7 +396,6 @@ export class Monarch implements INodeType {
 
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'GetTransactionsList',
 							GET_TRANSACTIONS_LIST,
 							{
@@ -426,7 +419,6 @@ export class Monarch implements INodeType {
 					if (operation === 'getSummary') {
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'GetTransactionsPage',
 							GET_TRANSACTIONS_PAGE,
 							{ filters: {} },
@@ -448,12 +440,21 @@ export class Monarch implements INodeType {
 
 						const responseData = await monarchRequest.call(
 							this,
-							token,
-							'GetCashflowSummary',
+							'Web_GetCashFlowPage',
 							GET_CASHFLOW_SUMMARY,
-							{ startDate, endDate },
+							{
+								filters: {
+									search: '',
+									categories: [],
+									accounts: [],
+									tags: [],
+									startDate,
+									endDate,
+								},
+							},
 						);
-						const summary = (responseData.summary as IDataObject) ?? {};
+						const summaryWrapper = (responseData.summary as IDataObject) ?? {};
+						const summary = (summaryWrapper.summary as IDataObject) ?? summaryWrapper;
 						const executionData = this.helpers.constructExecutionMetaData(
 							this.helpers.returnJsonArray([summary]),
 							{ itemData: { item: i } },
@@ -476,7 +477,6 @@ export class Monarch implements INodeType {
 
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'Common_GetJointPlanningData',
 							GET_JOINT_PLANNING_DATA,
 							{ startDate, endDate },
@@ -507,7 +507,6 @@ export class Monarch implements INodeType {
 
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'GetAggregateSnapshots',
 							GET_AGGREGATE_SNAPSHOTS,
 							{ filters },
@@ -527,7 +526,6 @@ export class Monarch implements INodeType {
 
 						const responseData = await monarchRequest.call(
 							this,
-							token,
 							'GetSnapshotsByAccountType',
 							GET_SNAPSHOTS_BY_ACCOUNT_TYPE,
 							{ startDate, timeframe },
