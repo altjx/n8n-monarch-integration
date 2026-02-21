@@ -44,15 +44,9 @@ If your container has a different name, pass it as an argument:
 ./install.sh my-n8n-container
 ```
 
-### 3. Restart n8n
+The script will automatically restart the container when done. After it comes back up, the **Monarch Money** node will appear in the n8n node panel and the **Monarch Money API** credential will be available under **Credentials → New**.
 
-```bash
-docker restart n8n
-```
-
-After restarting, the **Monarch Money** node will appear in the n8n node panel and the **Monarch Money API** credential will be available under **Credentials → New**.
-
-> **Note:** You'll need to re-run `./install.sh` and restart the container any time n8n is updated, since the container image is replaced on update.
+> **Note:** You'll need to re-run `./install.sh` any time n8n is updated, since the container image is replaced on update and the injected files are lost.
 
 ---
 
@@ -87,8 +81,9 @@ To update the node after pulling new changes from this repo:
 ```bash
 git pull
 ./install.sh
-docker restart n8n
 ```
+
+The install script will restart the container automatically.
 
 ---
 
@@ -102,6 +97,12 @@ If you want to modify the node:
 2. Copy the `src/` files into their respective locations under `packages/nodes-base/`
 3. Build with `pnpm build` from the `packages/nodes-base` directory
 4. Copy the new compiled output back into `dist/` in this repo
+
+---
+
+## Acknowledgments
+
+The Monarch Money API flow — including authentication, MFA handling, and GraphQL query structure — was informed by [monarchmoney](https://github.com/hammem/monarchmoney), an excellent unofficial Python client for Monarch Money.
 
 ---
 

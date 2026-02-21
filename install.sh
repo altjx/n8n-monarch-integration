@@ -66,5 +66,7 @@ console.log('package.json patched successfully.');
 EOF
 
 echo ""
-echo "==> Done! Restart the container to load the Monarch node:"
-echo "    docker restart $CONTAINER"
+echo "==> Restarting container '$CONTAINER'..."
+docker restart "$CONTAINER"
+echo ""
+echo "==> Done! The Monarch Money node is now available in n8n."
