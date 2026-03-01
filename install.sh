@@ -62,10 +62,16 @@ copy_files() {
   cp "$DIST/nodes/Monarch/monarch.svg"             "$dest/"
 
   echo "==> Copying node descriptions..."
-  for f in AccountDescription BudgetDescription CashFlowDescription NetWorthDescription TransactionDescription index; do
-    cp "$DIST/nodes/Monarch/descriptions/${f}.js"     "$dest/" 2>/dev/null || true
-    cp "$DIST/nodes/Monarch/descriptions/${f}.js.map" "$dest/" 2>/dev/null || true
+  mkdir -p "$dest/descriptions"
+  for f in AccountDescription BudgetDescription CashFlowDescription CategoryDescription NetWorthDescription TransactionDescription index; do
+    cp "$DIST/nodes/Monarch/descriptions/${f}.js"     "$dest/descriptions/" 2>/dev/null || true
+    cp "$DIST/nodes/Monarch/descriptions/${f}.js.map" "$dest/descriptions/" 2>/dev/null || true
   done
+
+  echo "==> Patching codex for custom node loader..."
+  sed -i.bak 's/n8n-nodes-base\.monarch/CUSTOM.monarch/g' "$dest/Monarch.node.json" 2>/dev/null || \
+    sed -i '' 's/n8n-nodes-base\.monarch/CUSTOM.monarch/g' "$dest/Monarch.node.json"
+  rm -f "$dest/Monarch.node.json.bak"
 }
 
 # ---------------------------------------------------------------------------
@@ -82,7 +88,7 @@ if $DOCKER; then
   fi
 
   echo "==> Creating custom node directory in container..."
-  docker exec "$CONTAINER" mkdir -p "$CUSTOM_DIR"
+  docker exec "$CONTAINER" mkdir -p "$CUSTOM_DIR/descriptions"
 
   echo "==> Copying files to container..."
   # Copy via a temp dir since docker cp can't do individual files to an existing dir cleanly
@@ -106,7 +112,7 @@ else
   CUSTOM_DIR="$N8N_FOLDER/custom"
 
   echo "==> Creating custom node directory at $CUSTOM_DIR..."
-  mkdir -p "$CUSTOM_DIR"
+  mkdir -p "$CUSTOM_DIR/descriptions"
 
   copy_files "$CUSTOM_DIR"
 
